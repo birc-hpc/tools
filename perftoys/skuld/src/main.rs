@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use perflib::{count_bytes, fit_counts_to_termwidth, print_counts};
+use std::io::Read;
 
 /// Skuld is one of the three Norns in Norse mythology.
 /// The word likely means debt, and this tool will put
@@ -48,27 +50,47 @@ enum Action {
     },
 }
 
-fn load_command(path: &std::path::PathBuf, n: u32) -> Result<()> {
+fn load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> Result<()> {
     let content = std::fs::read_to_string(&path)
         .with_context(|| format!("could not read file `{}`", path.display()))?;
-    println!("Here I should scan the file {} times", n);
-    println!("file content: {}", content);
+    for _ in 0..n {
+        count_bytes(content.as_bytes(), counts);
+    }
     Ok(())
 }
 
-fn scan_command(path: &std::path::PathBuf, n: u32) -> Result<()> {
-    std::fs::File::open(path)
-        .with_context(|| format!("could not read file `{}`", path.display()))?;
-    println!("I plan to scan the file here! I promise!");
-    println!("Here I should scan the file {} times", n);
+fn scan_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> Result<()> {
+    const BUFFER_LEN: usize = 512;
+    let mut buffer = [0u8; BUFFER_LEN];
+
+    for _ in 0..n {
+        let mut file = std::fs::File::open(path)
+            .with_context(|| format!("could not open file `{}`", path.display()))?;
+
+        loop {
+            let read_count = file.read(&mut buffer)?;
+            count_bytes(&buffer, counts);
+
+            if read_count != BUFFER_LEN {
+                break;
+            }
+        }
+    }
     Ok(())
 }
 
 fn main() -> Result<()> {
     let args = Cli::parse();
+    let mut counts = [0u32; 256];
+
     match args.action {
         // Dispatch to sub-command
-        Action::Load { path } => load_command(&path, args.n),
-        Action::Scan { path } => scan_command(&path, args.n),
-    }
+        Action::Load { path } => load_command(&path, args.n, &mut counts),
+        Action::Scan { path } => scan_command(&path, args.n, &mut counts),
+    }?;
+
+    fit_counts_to_termwidth(&mut counts);
+    print_counts(&counts);
+
+    Ok(())
 }
