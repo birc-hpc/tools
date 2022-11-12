@@ -1,0 +1,15 @@
+# Skuld is one of the three Norns in Norse mythology. The word
+# likely means debt, and this tool will put you in resource
+# debt in various ways.
+
+[package]
+name = "skuld"
+version = "0.1.0"
+author = "Thomas Mailund"
+edition = "2021"
+description = "The godess Skuld tally your debt."
+
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+anyhow = { version = "1.0" }
