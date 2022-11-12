@@ -47,7 +47,7 @@ function wrap_up() {
 }
 function measure() {
     local res measurements
-    res=$( ps -p $pid -o etime=,cputime=,cpu=,rss= ) || wrap_up
+    res=$( ps -p $pid -o etime= -o cputime= -o cpu= -o rss= ) || wrap_up
     IFS=' ' read -ra measurements <<< "$res"
     elapsed=${measurements[0]}
     cputime=${measurements[1]}
