@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Heimdall is the Nordic guard that stood watch over the Bifrost bridge.
+# He posseses foresight and keen senses, and sees all that happens in the
+# nine realms.
+#
+# The heimdall script sees a little bit of what a process is up to...
+
+## Starting up the command... #############################################
+
+# This bit is a bit crazy. We want the process ID of the program,
+# but we want it right away so we cannot wait for it to finish where
+# we could get $!. Instead, we write $$ through a pipe (so we can
+# get it non-blocking). We do this in a shell that exec the command,
+# so after the shell has printed the process id, the process id
+# is taken over by the command.
+
+# The cleanup function handles interuptions, if we want to stop
+# the measuremnets before time, and it is responsible for
+# cleaning up the fifo and killing the child.
+function cleanup_handler() {
+  if [[ -n $tmppipe ]] ; then rm -rf $tmppipe; fi
+  kill $pid
+  trap - EXIT
+  exit
+}
+trap 'cleanup_handler'      EXIT
+trap 'cleanup_handler HUP'  HUP
+trap 'cleanup_handler TERM' TERM
+trap 'cleanup_handler INT'  INT
+
+# Run command in background (but putting result in tmppipe first)
+tmppipe=$(mktemp -u)
+mkfifo -m 600 $tmppipe                      # Set up pipe
+bash -c "echo \$\$ > $tmppipe; exec $* " &  # Run other process in background
+
+# Get PID from pipe
+pid=$( cat $tmppipe )
+
+## Monitoring the other process... ####################################
+# Now we can monitor the process using ps -p $PID and finish when
+# the ps command returns a non-zero status
+function wrap_up() {
+    # Called when ps reports the process is dead
+    pid=0    # So we don't try to kill ther sub-process when exiting
+    exit 0   # exit success, rather than the ps command's failure
+}
+function measure() {
+    local res measurements
+    res=$( ps -p $pid -o etime=,cputime=,cpu=,rss= ) || wrap_up
+    IFS=' ' read -ra measurements <<< "$res"
+    elapsed=${measurements[0]}
+    cputime=${measurements[1]}
+    cpuload=${measurements[2]}
+    # rss is measured in 1024 byte pages. We translate it into kilobytes
+    memload=$(( ${measurements[3]} * 1024 / 1000 )) 
+}
+
+printf "%-15s,%-15s,%-15s,%-15s\n" \
+    "Elapsed time" \
+    "Acc. CPU time" \
+    "CPU load" \
+    "Memory load (kbytes)"
+
+while measure; do
+    printf "%-15s,%-15s,%-15s,%-15s\n" ${elapsed} ${cputime} ${cpuload} ${memload}
+    sleep 1
+done
