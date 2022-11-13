@@ -69,7 +69,7 @@ fn scan_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> R
 
         loop {
             let read_count = file.read(&mut buffer)?;
-            count_bytes(&buffer, counts);
+            count_bytes(&buffer[..read_count], counts);
 
             if read_count != BUFFER_LEN {
                 break;
