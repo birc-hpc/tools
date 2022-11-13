@@ -34,7 +34,7 @@ fn get_term_width() -> u32 {
 #[command(author, version, about, long_about)]
 struct Cli {
     /// The number of times to process the input file
-    #[arg(short, default_value_t = 1)]
+    #[arg(short, default_value_t = 1000)]
     n: u32,
 
     /// Which technique do you want for processing the data?
