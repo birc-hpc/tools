@@ -10,5 +10,6 @@ description = "The godess Skuld tally your debt."
 
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "wrap_help"] }
 anyhow = { version = "1.0" }
+terminal_size = { version = "0.2.2" }

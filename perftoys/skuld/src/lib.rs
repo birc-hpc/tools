@@ -5,11 +5,12 @@ pub fn count_bytes(x: &[u8], counts: &mut [u32; 256]) {
 }
 
 pub fn fit_counts_to_termwidth(counts: &mut [u32; 256], width: u32) {
-    let widest = match counts.iter().max() {
-        None => 1,
-        Some(m) => *m,
-    };
+    let widest = *counts.iter().max().as_deref().unwrap_or(&1u32);
+    println!("width is {}, widest is {}", width, widest);
     for i in 0..256 {
+        if counts[i] > 0 {
+            println!("Scaling {} to {}", counts[i], counts[i] * width / widest);
+        }
         counts[i] *= width;
         counts[i] /= widest;
     }

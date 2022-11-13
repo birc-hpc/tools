@@ -2,6 +2,16 @@ mod lib;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::io::Read;
+use terminal_size::{terminal_size, Width};
+
+// Working with terminal...
+fn get_term_width() -> u32 {
+    if let Some((Width(term_width), ..)) = terminal_size() {
+        term_width as u32
+    } else {
+        80
+    }
+}
 
 /// Skuld is one of the three Norns in Norse mythology.
 /// The word likely means debt, and this tool will put
@@ -22,7 +32,6 @@ use std::io::Read;
 /// ways, using different resources in the process.
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
-#[command(propagate_version = true)]
 struct Cli {
     /// The number of times to process the input file
     #[arg(short, default_value_t = 1)]
@@ -33,30 +42,42 @@ struct Cli {
     action: Action,
 }
 
+/// Action to run. All actions solve the same problem,
+/// computing a historgram over the bytes used in the
+/// input file, but they use different resources doing so.
 #[derive(Subcommand)]
 enum Action {
-    /// Load the input file into memory and process it there
-    Load {
+    /// Low memory, high I/O solution.
+    ///
+    /// Scans the file in small blocks, avoiding loading it all
+    /// into memory. This is costly in I/O but saves on RAM.
+    Brokkr {
         /// The file to process. This cannot be a pipe but must be
         /// a proper file.
         path: std::path::PathBuf,
     },
 
-    /// Scan the file without loading all of it in at once
-    Scan {
+    /// High memory, low I/O
+    ///
+    /// Loads the entire file into memory so it only has to read it
+    /// from file once. It then processes the data without further
+    /// disk access. This is cheap in I/O but expensive in memory.
+    Eitri {
         /// The file to process. This cannot be a pipe but must be
         /// a proper file.
         path: std::path::PathBuf,
     },
-}
 
-fn load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> Result<()> {
-    let content = std::fs::read_to_string(&path)
-        .with_context(|| format!("could not read file `{}`", path.display()))?;
-    for _ in 0..n {
-        lib::count_bytes(content.as_bytes(), counts);
-    }
-    Ok(())
+    /// Higher memory, low I/O
+    ///
+    /// Loads the entire file into memory so it only has to read it
+    /// from file once. It then processes the data without further
+    /// disk access. This is cheap in I/O but expensive in memory.
+    Sindri {
+        /// The file to process. This cannot be a pipe but must be
+        /// a proper file.
+        path: std::path::PathBuf,
+    },
 }
 
 fn scan_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> Result<()> {
@@ -70,11 +91,30 @@ fn scan_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> R
         loop {
             let read_count = file.read(&mut buffer)?;
             lib::count_bytes(&buffer[..read_count], counts);
-
             if read_count != BUFFER_LEN {
                 break;
             }
         }
+    }
+    Ok(())
+}
+
+fn load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> Result<()> {
+    let content = std::fs::read_to_string(&path)
+        .with_context(|| format!("could not read file `{}`", path.display()))?;
+    for _ in 0..n {
+        lib::count_bytes(content.as_bytes(), counts);
+    }
+    Ok(())
+}
+
+fn crazy_load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> Result<()> {
+    let mut strings: Vec<String> = vec![];
+    for _ in 0..n {
+        let content = std::fs::read_to_string(&path)
+            .with_context(|| format!("could not read file `{}`", path.display()))?;
+        strings.push(content); // just to waste some memory
+        lib::count_bytes(strings.last().unwrap().as_bytes(), counts);
     }
     Ok(())
 }
@@ -85,12 +125,14 @@ fn main() -> Result<()> {
 
     match args.action {
         // Dispatch to sub-command
-        Action::Load { path } => load_command(&path, args.n, &mut counts),
-        Action::Scan { path } => scan_command(&path, args.n, &mut counts),
+        Action::Brokkr { path } => scan_command(&path, args.n, &mut counts),
+        Action::Eitri { path } => load_command(&path, args.n, &mut counts),
+        Action::Sindri { path } => crazy_load_command(&path, args.n, &mut counts),
     }?;
 
-    let term_width = 80; // FIXME get term width
-    lib::fit_counts_to_termwidth(&mut counts, term_width);
+    let margin = 5; // 'nnn: '
+    let term_width = get_term_width();
+    lib::fit_counts_to_termwidth(&mut counts, term_width - margin);
     lib::print_counts(&counts);
 
     Ok(())
