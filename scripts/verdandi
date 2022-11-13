@@ -1,10 +1,51 @@
 #!/bin/bash
 
-# Heimdall is the Nordic guard that stood watch over the Bifrost bridge.
-# He posseses foresight and keen senses, and sees all that happens in the
-# nine realms.
-#
-# The heimdall script sees a little bit of what a process is up to...
+
+## Option parsing ############################################
+function print_usage() {
+    cat << EOF
+Usage: verdandi [options] [--] [command...]
+
+    command:
+         The command you want to run a monitor on
+
+    options:
+        -h    Show this message.
+        -s    Silence the command (redirect its output)
+        -o    Output file. The log is written here. [default: stdout]
+        --    End of options and start of the command to run.
+              Use this to separate verdandi options from your tool's
+              options.
+
+EOF
+}
+function print_help() {
+    cat << EOF
+Verðandi (anglicised Verdandi), meaning "happening" or "present",
+is one of the three Norse goddesses of fate.
+
+The verdandi script sees a little bit of what a process is up to...
+
+EOF
+    print_usage
+}
+
+
+if (( $# == 0 )); then
+    print_usage
+    exit 22
+fi
+
+silence_str=""
+outfile=/dev/stdout
+while getopts "hso:" flag; do
+    case $flag in
+        h) print_help ; exit 0 ;;
+        o) outfile=$OPTARG     ;;
+        s) silence_str="> /dev/null 2> /dev/null" ;;
+    esac
+done
+shift $((OPTIND-1)) # set $@ to the remaining args. They will the command we run
 
 ## Starting up the command... #############################################
 
@@ -32,7 +73,7 @@ trap 'cleanup_handler INT'  INT
 # Run command in background (but putting result in tmppipe first)
 tmppipe=$(mktemp -u)
 mkfifo -m 600 $tmppipe                      # Set up pipe
-bash -c "echo \$\$ > $tmppipe; exec $* " &  # Run other process in background
+bash -c "echo \$\$ > $tmppipe; exec $* $silence_str " &  # Run other process in background
 
 # Get PID from pipe
 pid=$( cat $tmppipe )
@@ -60,9 +101,9 @@ printf "%-15s,%-15s,%-15s,%-15s\n" \
     "Elapsed time" \
     "Acc. CPU time" \
     "CPU load" \
-    "Memory load (kbytes)"
+    "Memory load (kbytes)" > $outfile
 
 while measure; do
-    printf "%-15s,%-15s,%-15s,%-15s\n" ${elapsed} ${cputime} ${cpuload} ${memload}
+    printf "%-15s,%-15s,%-15s,%-15s\n" ${elapsed} ${cputime} ${cpuload} ${memload} >> $outfile
     sleep 1
 done
