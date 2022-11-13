@@ -12,4 +12,3 @@ description = "The godess Skuld tally your debt."
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 anyhow = { version = "1.0" }
-perflib = { path = "../perflib" }

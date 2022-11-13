@@ -1,6 +1,6 @@
+mod lib;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use perflib::{count_bytes, fit_counts_to_termwidth, print_counts};
 use std::io::Read;
 
 /// Skuld is one of the three Norns in Norse mythology.
@@ -54,7 +54,7 @@ fn load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> R
     let content = std::fs::read_to_string(&path)
         .with_context(|| format!("could not read file `{}`", path.display()))?;
     for _ in 0..n {
-        count_bytes(content.as_bytes(), counts);
+        lib::count_bytes(content.as_bytes(), counts);
     }
     Ok(())
 }
@@ -69,7 +69,7 @@ fn scan_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> R
 
         loop {
             let read_count = file.read(&mut buffer)?;
-            count_bytes(&buffer[..read_count], counts);
+            lib::count_bytes(&buffer[..read_count], counts);
 
             if read_count != BUFFER_LEN {
                 break;
@@ -89,8 +89,9 @@ fn main() -> Result<()> {
         Action::Scan { path } => scan_command(&path, args.n, &mut counts),
     }?;
 
-    fit_counts_to_termwidth(&mut counts);
-    print_counts(&counts);
+    let term_width = 80; // FIXME get term width
+    lib::fit_counts_to_termwidth(&mut counts, term_width);
+    lib::print_counts(&counts);
 
     Ok(())
 }
