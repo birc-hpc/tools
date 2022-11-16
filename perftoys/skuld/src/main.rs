@@ -1,4 +1,3 @@
-mod lib;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::io::Read;
@@ -90,7 +89,7 @@ fn scan_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> R
 
         loop {
             let read_count = file.read(&mut buffer)?;
-            lib::count_bytes(&buffer[..read_count], counts);
+            skuld::count_bytes(&buffer[..read_count], counts);
             if read_count != BUFFER_LEN {
                 break;
             }
@@ -103,7 +102,7 @@ fn load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]) -> R
     let content = std::fs::read_to_string(&path)
         .with_context(|| format!("could not read file `{}`", path.display()))?;
     for _ in 0..n {
-        lib::count_bytes(content.as_bytes(), counts);
+        skuld::count_bytes(content.as_bytes(), counts);
     }
     Ok(())
 }
@@ -114,7 +113,7 @@ fn crazy_load_command(path: &std::path::PathBuf, n: u32, counts: &mut [u32; 256]
         let content = std::fs::read_to_string(&path)
             .with_context(|| format!("could not read file `{}`", path.display()))?;
         strings.push(content); // just to waste some memory
-        lib::count_bytes(strings.last().unwrap().as_bytes(), counts);
+        skuld::count_bytes(strings.last().unwrap().as_bytes(), counts);
     }
     Ok(())
 }
@@ -132,8 +131,8 @@ fn main() -> Result<()> {
 
     let margin = 5; // 'nnn: '
     let term_width = get_term_width();
-    lib::fit_counts_to_termwidth(&mut counts, term_width - margin);
-    lib::print_counts(&counts);
+    skuld::fit_counts_to_termwidth(&mut counts, term_width - margin);
+    skuld::print_counts(&counts);
 
     Ok(())
 }
