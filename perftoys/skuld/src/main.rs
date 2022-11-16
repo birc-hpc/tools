@@ -56,7 +56,7 @@ enum Action {
         path: std::path::PathBuf,
     },
 
-    /// High memory, low I/O
+    /// High memory, low I/O solution
     ///
     /// Loads the entire file into memory so it only has to read it
     /// from file once. It then processes the data without further
@@ -67,7 +67,7 @@ enum Action {
         path: std::path::PathBuf,
     },
 
-    /// Higher memory, low I/O
+    /// Higher memory, low I/O solution
     ///
     /// Loads the entire file into memory so it only has to read it
     /// from file once. It then processes the data without further
